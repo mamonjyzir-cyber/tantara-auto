@@ -1,0 +1,28 @@
+name: Fangalana boky malaza isaky ny 3 ora
+
+on:
+  schedule:
+    - cron: "0 */3 * * *"   # isaky ny 3 ora (UTC) = 03:00, 06:00, 09:00... eto Antananarivo
+  workflow_dispatch:         # azo atao an-tsoratra
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install requests pandas
+
+      - run: python script.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: donnee
+          retention-days: 7
+          path: |
+            *.csv
+            livres/

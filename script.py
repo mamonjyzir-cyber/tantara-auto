@@ -4,7 +4,7 @@ import time
 import requests
 import pandas as pd
 
-URL = "https://gutendex.com/books/?topic=fiction&sort=popular&languages=en"
+URL = "https://gutendex.com/books/?topic=fiction&sort=popular&languages=fr"
 MAX_TANTARA = 20
 DOSSIER = "livres"
 HEADERS = {"User-Agent": "TantaraBot/1.0 (fampiasana manokana)"}

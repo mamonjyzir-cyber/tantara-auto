@@ -1,11 +1,13 @@
 import os
 import re
+import sys
 import time
 import requests
 import pandas as pd
 
-URL = "https://gutendex.com/books/?search=myst%C3%A8re&languages=fr&sort=descending"
-MAX_TANTARA = 3
+# ID-n'ny boky mivantana (azo ampiana na esorina)
+IDS = [13765, 24867]
+
 DOSSIER = "livres"
 HEADERS = {"User-Agent": "TantaraBot/1.0 (fampiasana manokana)"}
 
@@ -15,85 +17,86 @@ FORMATS = {
     "txt": "text/plain",
 }
 
-COLONNES = ["lohateny", "mpanoratra", "mpamaky", "lohahevitra", "rohy", "fichiers", "commentaire"]
+COLONNES = ["id", "lohateny", "mpanoratra", "mpamaky", "lohahevitra", "rohy", "fichiers", "commentaire"]
 
 os.makedirs(DOSSIER, exist_ok=True)
+
+
+def get(url, timeout=60):
+    """Fangatahana miaraka amin'ny fanandramana indray raha 429 na hadisoana server."""
+    for attempt in range(3):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=timeout)
+            if r.status_code == 200:
+                return r
+            print(f"Status {r.status_code} ho an'ny {url}")
+            if r.status_code not in (429, 500, 502, 503, 504):
+                return None
+        except requests.RequestException as e:
+            print(f"Hadisoana fifandraisana: {e}")
+        time.sleep(5 * (attempt + 1))
+    return None
 
 
 def nom_fichier(texte):
     return re.sub(r"[^\w\-]+", "_", texte)[:80].strip("_") or "boky"
 
 
-def telecharger(url, chemin):
-    r = requests.get(url, headers=HEADERS, timeout=60)
-    r.raise_for_status()
-    with open(chemin, "wb") as f:
-        f.write(r.content)
-
-
-def lire_katalogy(url):
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=30)
-        r.raise_for_status()
-        return r.json()
-    except (requests.RequestException, ValueError) as e:
-        print(f"Tsy nahomby ny famakiana katalogy: {url} ({e})")
-        return None
-
-
 rows = []
-url = URL
 
-while url and len(rows) < MAX_TANTARA:
-    data = lire_katalogy(url)
-    if not data:
-        break
+for bid in IDS:
+    r = get(f"https://gutendex.com/books/{bid}", timeout=30)
+    if r is None:
+        print(f"Tsy nahazo ny boky {bid}")
+        continue
 
-    for b in data.get("results", []):
-        if len(rows) >= MAX_TANTARA:
-            break
-        try:
-            auteurs = ", ".join(a.get("name", "") for a in b.get("authors", [])) or "Tsy fantatra"
-            sujets = b.get("subjects", [])[:2]
-            mpamaky = b.get("download_count", 0)
-            formats = b.get("formats", {})
+    b = r.json()
+    titre = b.get("title", "")
+    print(f"Boky {bid}: {titre}")
 
-            commentaire = f"Malaza amin'ny mpamaky {mpamaky:,} ; mpanoratra: {auteurs}"
-            if sujets:
-                commentaire += f" ; lohahevitra: {'; '.join(sujets)}"
+    auteurs = ", ".join(a.get("name", "") for a in b.get("authors", [])) or "Tsy fantatra"
+    sujets = b.get("subjects", [])[:2]
+    mpamaky = b.get("download_count", 0)
+    formats = b.get("formats", {})
 
-            fichiers = []
-            for ext, mime in FORMATS.items():
-                lien = next((u for k, u in formats.items() if k.startswith(mime)), None)
-                if not lien:
-                    continue
-                chemin = os.path.join(DOSSIER, f"{b['id']}_{nom_fichier(b.get('title', ''))}.{ext}")
-                try:
-                    telecharger(lien, chemin)
-                    fichiers.append(ext)
-                    print(f"Voaray: {chemin}")
-                except Exception as e:
-                    print(f"Tsy nahomby: {b.get('title')} ({ext}): {e}")
-                time.sleep(1)
+    commentaire = f"Malaza amin'ny mpamaky {mpamaky:,} ; mpanoratra: {auteurs}"
+    if sujets:
+        commentaire += f" ; lohahevitra: {'; '.join(sujets)}"
 
-            rows.append({
-                "lohateny": b.get("title", ""),
-                "mpanoratra": auteurs,
-                "mpamaky": mpamaky,
-                "lohahevitra": "; ".join(sujets),
-                "rohy": f"https://www.gutenberg.org/ebooks/{b['id']}",
-                "fichiers": ", ".join(fichiers),
-                "commentaire": commentaire,
-            })
-        except Exception as e:
-            print(f"Tsy nahomby ny boky iray: {e}")
+    fichiers = []
+    for ext, mime in FORMATS.items():
+        lien = next((u for k, u in formats.items() if k.startswith(mime)), None)
+        if not lien:
+            print(f"  Tsy misy {ext} ho an'ny {bid}")
+            continue
 
-    url = data.get("next")
-    time.sleep(1)
+        chemin = os.path.join(DOSSIER, f"{bid}_{nom_fichier(titre)}.{ext}")
+        fichier = get(lien, timeout=120)
+        if fichier is None:
+            print(f"  Tsy nahomby: {ext} ho an'ny {bid}")
+        else:
+            with open(chemin, "wb") as f:
+                f.write(fichier.content)
+            fichiers.append(ext)
+            print(f"  Voaray: {chemin}")
+        time.sleep(2)
+
+    rows.append({
+        "id": bid,
+        "lohateny": titre,
+        "mpanoratra": auteurs,
+        "mpamaky": mpamaky,
+        "lohahevitra": "; ".join(sujets),
+        "rohy": f"https://www.gutenberg.org/ebooks/{bid}",
+        "fichiers": ", ".join(fichiers),
+        "commentaire": commentaire,
+    })
+    time.sleep(2)
 
 df = pd.DataFrame(rows, columns=COLONNES)
-if not df.empty:
-    df = df.sort_values("mpamaky", ascending=False)
 df.to_csv("tantara_malaza.csv", index=False)
-
 print(f"Voatahiry: {len(df)} tantara")
+
+if df.empty:
+    print("TSY NISY BOKY NAHAZOINA: jereo ny hafatra etsy ambony.")
+    sys.exit(1)

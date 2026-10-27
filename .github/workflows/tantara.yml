@@ -23,6 +23,8 @@ jobs:
         with:
           name: donnee
           retention-days: 7
+          if-no-files-found: warn
           path: |
             *.csv
             livres/
+            livres_en/

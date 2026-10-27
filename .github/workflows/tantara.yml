@@ -1,9 +1,9 @@
-name: Fangalana boky malaza isaky ny 3 ora
+name: Fangalana boky isaky ny ora
 
 on:
   schedule:
-    - cron: "0 */3 * * *"   # isaky ny 3 ora (UTC) = 03:00, 06:00, 09:00... eto Antananarivo
-  workflow_dispatch:         # azo atao an-tsoratra
+    - cron: "0 * * * *"   # isaky ny ora (UTC), minitra 0
+  workflow_dispatch:       # azo atao an-tsoratra
 
 jobs:
   run:

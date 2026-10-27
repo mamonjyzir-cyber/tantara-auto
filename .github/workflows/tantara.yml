@@ -1,13 +1,14 @@
-name: Fangalana boky frantsay isaky ny ora
+name: Fangalana boky frantsay
 
 on:
   schedule:
-    - cron: "0 * * * *"   # isaky ny ora (UTC), minitra 0
+    - cron: "0 3 * * *"   # isan'andro 03:00 UTC = 06:00 eto Antananarivo
   workflow_dispatch:       # azo atao an-tsoratra
 
 jobs:
   run:
     runs-on: ubuntu-latest
+    timeout-minutes: 340   # 5 ora 40 minitra, ambany ny fetra 6 ora
     steps:
       - uses: actions/checkout@v4
 
@@ -22,6 +23,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: donnee
-          retention-days: 7
+          retention-days: 2
           if-no-files-found: warn
           path: livres/

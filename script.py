@@ -30,7 +30,8 @@ r.raise_for_status()
 catalogue = csv.DictReader(io.StringIO(r.content.decode("utf-8-sig")))
 frantsay = [
     row for row in catalogue
-    if row.get("Language") == "French" and row.get("Type") == "Text"
+    if "fr" in [x.strip() for x in row.get("Language", "").split(";")]
+    and row.get("Type") == "Text"
 ]
 print(f"Boky frantsay rehetra: {len(frantsay)}")
 

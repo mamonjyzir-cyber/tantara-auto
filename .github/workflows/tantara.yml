@@ -1,4 +1,4 @@
-name: Fangalana boky isaky ny ora
+name: Fangalana boky frantsay isaky ny ora
 
 on:
   schedule:
@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: pip install requests pandas
+      - run: pip install requests
 
       - run: python script.py
 
@@ -24,7 +24,4 @@ jobs:
           name: donnee
           retention-days: 7
           if-no-files-found: warn
-          path: |
-            *.csv
-            livres/
-            livres_en/
+          path: livres/
